@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票交易紀錄器 v2</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; max-width: 450px; margin: auto; background-color: #f4f7f6; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; margin-top: 0; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        
+        /* 日期區塊 */
+        .date-input-group { display: flex; gap: 8px; }
+        input[type="date"], input[type="text"], input[type="number"] { 
+            flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; 
+        }
+        .btn-today { background-color: #6c757d; color: white; border: none; padding: 0 15px; border-radius: 8px; cursor: pointer; }
+
+        /* 買賣按鈕區塊 */
+        .type-group { display: flex; gap: 10px; }
+        .btn-type { 
+            flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; 
+            background: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        /* 選中狀態 */
+        .btn-type.active-buy { border-color: #e74c3c; color: #e74c3c; background-color: #fdedec; }
+        .btn-type.active-sell { border-color: #27ae60; color: #27ae60; background-color: #eafaf1; }
+
+        button[type="submit"] { 
+            width: 100%; padding: 15px; background-color: #007bff; color: white; 
+            border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        #message { margin-top: 15px; padding: 12px; border-radius: 8px; display: none; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>新增交易紀錄</h2>
+    
+    <form id="tradeForm">
+        <div class="form-group">
+            <label>交易日期</label>
+            <div class="date-input-group">
+                <input type="date" id="day" required>
+                <button type="button" class="btn-today" onclick="setToday()">今日</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>買賣別</label>
+            <div class="type-group">
+                <button type="button" id="buyBtn" class="btn-type" onclick="setType('買入')">買入</button>
+                <button type="button" id="sellBtn" class="btn-type" onclick="setType('賣出')">賣出</button>
+            </div>
+            <input type="hidden" id="buysell" required> </div>
+
+        <div class="form-group">
+            <label>股票名稱</label>
+            <input type="text" id="name" placeholder="例如：台積電" required>
+        </div>
+
+        <div class="form-group">
+            <label>數量 (股/張)</label>
+            <input type="number" id="quantity" placeholder="1000" required>
+        </div>
+
+        <div class="form-group">
+            <label>成交單價</label>
+            <input type="number" step="0.01" id="price" placeholder="800.0" required>
+        </div>
+
+        <button type="submit" id="submitBtn">確認送出</button>
+    </form>
+
+    <div id="message"></div>
+</div>
+
+<script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbxiJbVztWFq0LonNG3zeBglkS9h4nCTAOwsppvMxJCsyyQGv_aGe7ClLSMXC4Ef7_ev1g/exec'; // <--- 請務必替換成你的 GAS URL
+    const form = document.getElementById('tradeForm');
+    const msg = document.getElementById('message');
+
+    // 1. 自動帶入今天日期功能
+    function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('day').value = today;
+    }
+
+    // 2. 處理買賣按鈕選取狀態
+    function setType(type) {
+        const buyBtn = document.getElementById('buyBtn');
+        const sellBtn = document.getElementById('sellBtn');
+        const hiddenInput = document.getElementById('buysell');
+        
+        hiddenInput.value = type;
+        
+        if (type === '買入') {
+            buyBtn.className = 'btn-type active-buy';
+            sellBtn.className = 'btn-type';
+        } else {
+            sellBtn.className = 'btn-type active-sell';
+            buyBtn.className = 'btn-type';
+        }
+    }
+
+    // 3. 表單送出邏輯
+    form.addEventListener('submit', e => {
+        e.preventDefault();
+        
+        // 檢查是否有選買賣別
+        if (!document.getElementById('buysell').value) {
+            alert('請選擇「買入」或「賣出」');
+            return;
+        }
+
+        document.getElementById('submitBtn').disabled = true;
+        msg.style.display = 'block';
+        msg.innerText = '傳送中...';
+        msg.style.background = '#fff3cd';
+
+        const params = new URLSearchParams({
+            day: document.getElementById('day').value,
+            buysell: document.getElementById('buysell').value,
+            name: document.getElementById('name').value,
+            quantity: document.getElementById('quantity').value,
+            price: document.getElementById('price').value
+        });
+
+        fetch(`${scriptURL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' })
+            .then(() => {
+                msg.innerText = '✅ 資料成功寫入試算表！';
+                msg.style.background = '#d4edda';
+                form.reset();
+                document.getElementById('buysell').value = '';
+                document.getElementById('buyBtn').className = 'btn-type';
+                document.getElementById('sellBtn').className = 'btn-type';
+                document.getElementById('submitBtn').disabled = false;
+            })
+            .catch(error => {
+                msg.innerText = '❌ 發生錯誤：' + error.message;
+                msg.style.background = '#f8d7da';
+                document.getElementById('submitBtn').disabled = false;
+            });
+    });
+</script>
+
+</body>
+</html>
